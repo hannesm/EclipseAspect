@@ -7,7 +7,10 @@ import org.eclipse.jdt.internal.compiler.ast.Expression;
 import org.eclipse.jdt.internal.compiler.parser.TerminalTokens;
 import org.eclipse.jdt.internal.compiler.problem.ProblemReporter;
 
+import org.eclipse.jdt.internal.compiler.ast.ASTNode;
+
 import embedding.custom.ast.CurrencyExpression;
+import embedding.custom.ast.MyStatement;
 import embedding.custom.ast.CustomParser;
 import base org.eclipse.jdt.core.dom.ASTConverter;
 import base org.eclipse.jdt.core.dom.SimpleName;
@@ -94,7 +97,7 @@ public team class SyntaxAdaptor {
 
 			// import methods from Parser ("callout bindings"):
 			@SuppressWarnings("decapsulation")
-			void pushOnExpressionStack(Expression expr) -> void pushOnExpressionStack(Expression expr);
+			void pushOnAstStack(ASTNode stmt) -> void pushOnAstStack(ASTNode stmt);
 			ProblemReporter getProblemReporter()        -> ProblemReporter problemReporter();
 			
 			// intercept this method from Parser ("callin binding"):
@@ -105,8 +108,9 @@ public team class SyntaxAdaptor {
 				if (type == TerminalTokens.TokenNamenull) {
 					// this inner adaptor has done its job, no longer intercept
 					InnerCompilerAdaptor.this.deactivate(); 
-					Expression replacement = customParser.parseCurrencyExpression(source, start, end, this.getProblemReporter());
-					this.pushOnExpressionStack(replacement);					// feed custom AST into the parser.
+					Expression e = customParser.parseCurrencyExpression(source, start, end, this.getProblemReporter());
+					ASTNode replacement = new MyStatement(e, e, start);
+					this.pushOnAstStack(replacement);					// feed custom AST into the parser.
 					return;
 				}
 				// shouldn't happen: only activated when scanner returns TokenNamenull
