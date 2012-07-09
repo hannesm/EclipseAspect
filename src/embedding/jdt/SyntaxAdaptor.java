@@ -35,6 +35,7 @@ public team class SyntaxAdaptor {
 		int getCurrentPosition() 					 -> get int currentPosition;
 		void setCurrentPosition(int currentPosition) -> set int currentPosition;
 		char[] getSource()       					 -> get char[] source;
+		void recordComment(int token)                -> void recordComment(int token);
 
 		// intercept this method from Scanner ("callin binding"):
 		int getNextToken() <- replace int getNextToken();
@@ -58,7 +59,8 @@ public team class SyntaxAdaptor {
 					int end = pos-2; 											  // position of "%>"
 					char[] fragment = CharOperation.subarray(source, start, end); // extract the custom string (excluding <% and %>)
 					// prepare an inner adaptor to intercept the expected parser action 
-					new InnerCompilerAdaptor(fragment, start-2, end+1).activate();		  // positions include <% and %>
+					//new InnerCompilerAdaptor(fragment, start-2, end+1).activate();		  // positions include <% and %>
+					this.recordComment(TerminalTokens.TokenNameCOMMENT_LINE);
 					return TerminalTokens.TokenNamenull;						  // pretend we saw a valid expression token ('null') 
 				}
 			}
@@ -76,7 +78,7 @@ public team class SyntaxAdaptor {
 	 * concurrent compilations don't interfere: By using thread activation any state of
 	 * this team is automatically local to that thread.
 	 */
-	protected team class InnerCompilerAdaptor {
+/*	protected team class InnerCompilerAdaptor {
 		
 		CustomParser customParser = new CustomParser();
 		
@@ -89,7 +91,7 @@ public team class SyntaxAdaptor {
 			this.end = end;
 		}
 		
-		/** This inner role does the real work of the InnerCompilerAdaptor. */
+		// This inner role does the real work of the InnerCompilerAdaptor.
 		protected class ParserAdaptor playedBy Parser {
 
 			// import methods from Parser ("callout bindings"):
@@ -114,7 +116,7 @@ public team class SyntaxAdaptor {
 			}
 		}		
 	}
-	
+	*/
 	/** 
 	 * DOM representation of CurrencyExpression.
 	 * Since the constructors of all DOM classes are package private we cannot subclass, so we use a role instead.
