@@ -42,13 +42,13 @@ public class CustomParser {
 												   source, 
 												   "unparsed token", 
 												   "'value currency'");
-			expr.value = new IntLiteral("0".toCharArray(), innerStart, innerEnd);
+			expr.value = IntLiteral.buildIntLiteral("0".toCharArray(), innerStart, innerEnd);
 			expr.currency = "NO CURRENCY";
 			return expr;
 		}
 		
 		// set components:
-		expr.value = new IntLiteral(parts[0], innerStart, innerStart+parts[0].length-1);
+		expr.value = IntLiteral.buildIntLiteral(parts[0], innerStart, innerStart+parts[0].length-1);
 		boolean validCurrency = expr.setCurrency(new String(parts[1]));
 		
 		if (!validCurrency) {

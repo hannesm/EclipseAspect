@@ -3,15 +3,20 @@ package embedding.jdt;
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.core.compiler.InvalidInputException;
 import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.internal.compiler.ast.ASTNode;
+import org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration;
 import org.eclipse.jdt.internal.compiler.ast.Expression;
+import org.eclipse.jdt.internal.compiler.ast.FieldDeclaration;
+import org.eclipse.jdt.internal.compiler.ast.Statement;
+import org.eclipse.jdt.internal.compiler.ast.TypeDeclaration;
 import org.eclipse.jdt.internal.compiler.parser.TerminalTokens;
 import org.eclipse.jdt.internal.compiler.problem.ProblemReporter;
 
-import org.eclipse.jdt.internal.compiler.ast.ASTNode;
-
 import embedding.custom.ast.CurrencyExpression;
-import embedding.custom.ast.MyStatement;
 import embedding.custom.ast.CustomParser;
+import embedding.custom.ast.StatementSpec;
+import embedding.custom.ast.TypeSpec;
+
 import base org.eclipse.jdt.core.dom.ASTConverter;
 import base org.eclipse.jdt.core.dom.SimpleName;
 import base org.eclipse.jdt.internal.compiler.parser.Parser;
@@ -43,7 +48,6 @@ public team class SyntaxAdaptor {
 		int getNextToken() <- replace int getNextToken();
 
 		callin int getNextToken() throws InvalidInputException {
-			System.out.println("getnexttoken called!");
 			// invoke the original method:
 			int token = base.getNextToken();
 			if (token == TerminalTokens.TokenNameLESS) {
@@ -61,8 +65,8 @@ public team class SyntaxAdaptor {
 					int end = pos-2; 											  // position of "%>"
 					char[] fragment = CharOperation.subarray(source, start, end); // extract the custom string (excluding <% and %>)
 					// prepare an inner adaptor to intercept the expected parser action 
-					new InnerCompilerAdaptor(fragment, start-2, end+1).activate();		  // positions include <% and %>
-					return TerminalTokens.TokenNamenull;						  // pretend we saw a valid expression token ('null') 
+					new InnerCompilerAdaptor(fragment, start-2, end+1).activate();	// positions include <% and %>
+					return TerminalTokens.TokenNameSEMICOLON;					  // pretend we saw an empty declaration (';') 
 				}
 			}
 			return token;
@@ -93,29 +97,63 @@ public team class SyntaxAdaptor {
 		}
 		
 		/** This inner role does the real work of the InnerCompilerAdaptor. */
+		@SuppressWarnings("decapsulation")
 		protected class ParserAdaptor playedBy Parser {
 
 			// import methods from Parser ("callout bindings"):
-			@SuppressWarnings("decapsulation")
 			void pushOnAstStack(ASTNode stmt) -> void pushOnAstStack(ASTNode stmt);
 			ProblemReporter getProblemReporter()        -> ProblemReporter problemReporter();
+
+			// peek the top of the ast stack, or null if stack is empty
+			ASTNode getCurrentASTNode() -> get ASTNode[] astStack
+				with { result <- base.astPtr > -1 ? astStack[base.astPtr] : null }
+			
+			int getStartPosition() -> get Scanner scanner
+				with { result <- scanner.startPosition }
+
+
+			boolean hasParsedSpec = false;
 			
 			// intercept this method from Parser ("callin binding"):
 			void consumeToken(int type) <- replace void consumeToken(int type);
 			
 			@SuppressWarnings("basecall")
 			callin void consumeToken(int type) {
-				if (type == TerminalTokens.TokenNamenull) {
-					// this inner adaptor has done its job, no longer intercept
-					InnerCompilerAdaptor.this.deactivate(); 
-					Expression e = customParser.parseCurrencyExpression(source, start, end, this.getProblemReporter());
-					ASTNode replacement = new MyStatement(e, e, start);
-					this.pushOnAstStack(replacement);					// feed custom AST into the parser.
-					return;
+				if (type == TerminalTokens.TokenNameSEMICOLON) {
+					if (start == getStartPosition()) {
+						// inspect the adjacent node to see where we are: 
+						ASTNode currentNode = getCurrentASTNode();
+						if (currentNode instanceof TypeDeclaration || currentNode instanceof FieldDeclaration || currentNode instanceof AbstractMethodDeclaration) {
+							pushOnAstStack(new TypeSpec(parseSpec(), start, end));
+							return;
+						} else if (currentNode instanceof Statement) {
+							pushOnAstStack(new StatementSpec(parseSpec(), start, end));
+							return;
+						}
+					}
 				}
 				// shouldn't happen: only activated when scanner returns TokenNamenull
 				base.consumeToken(type);
 			}
+			
+			Expression parseSpec() {
+				this.hasParsedSpec = true;
+				return customParser.parseCurrencyExpression(source, start, end, this.getProblemReporter());
+			}
+
+			consumeSemi <- replace consumeEmptyTypeDeclaration, consumeEmptyStatement
+				when (hasParsedSpec);
+			
+			/** Given we have parsed as spec, don't create AST for the fake ';' */
+			@SuppressWarnings({ "basecall", "inferredcallout" })
+			callin void consumeSemi() {
+				// this inner adaptor has done its job, no longer intercept
+				InnerCompilerAdaptor.this.deactivate(); 
+				// don't push on astLengthStack (as consumeEmptyTypeDeclaration does)
+				flushCommentsDefinedPriorTo(this.endStatementPosition);
+			}
+			
+			void deactivate() <- after void parse(); // fail safe, just in case consumeSemi() didn't get triggered
 		}		
 	}
 	
