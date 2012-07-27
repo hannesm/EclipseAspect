@@ -13,4 +13,9 @@ public class MyStatement extends AssertStatement {
 		// TODO Auto-generated constructor stub
 		System.out.println("instantiated MyStatement");
 	}
+	
+	public int complainIfUnreachable(FlowInfo flowInfo, BlockScope scope, int previousComplaintLevel) {
+		//shut up!
+		return previousComplaintLevel;
+	}
 }

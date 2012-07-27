@@ -43,4 +43,9 @@ public class TypeSpec extends Initializer {
 	public void resolve(MethodScope scope) {
 		// nop
 	}
+	
+	public int complainIfUnreachable(FlowInfo flowInfo, BlockScope scope, int previousComplaintLevel) {
+		//shut up!
+		return previousComplaintLevel;
+	}
 }
